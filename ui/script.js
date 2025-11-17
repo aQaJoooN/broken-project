@@ -1,0 +1,33 @@
+document.getElementById('setForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const key = document.getElementById('key').value;
+    const value = document.getElementById('value').value;
+    const resultDiv = document.getElementById('result');
+    
+    try {
+        const response = await fetch('http://localhost:8080/api/set', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ key, value })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            resultDiv.className = 'result success';
+            resultDiv.textContent = `✓ ${data.message}`;
+        } else {
+            resultDiv.className = 'result error';
+            resultDiv.textContent = `✗ ${data.message}`;
+        }
+        
+        document.getElementById('setForm').reset();
+        
+    } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.textContent = `✗ Error: ${error.message}`;
+    }
+});
