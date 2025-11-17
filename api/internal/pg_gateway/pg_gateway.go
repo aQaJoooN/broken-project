@@ -9,12 +9,21 @@ import (
 )
 
 type PGClient struct {
-	conn net.Conn
-	host string
-	port string
-	user string
-	pass string
-	db   string
+	conn            net.Conn
+	host            string
+	port            string
+	user            string
+	pass            string
+	db              string
+	metricsRegistry interface {
+		SetGauge(name string, value float64, labels map[string]string)
+	}
+}
+
+func (p *PGClient) SetMetricsRegistry(registry interface {
+	SetGauge(name string, value float64, labels map[string]string)
+}) {
+	p.metricsRegistry = registry
 }
 
 func NewPGClient(host, port, user, password, dbname string) *PGClient {
@@ -215,6 +224,8 @@ func (p *PGClient) buildPasswordMessage() []byte {
 }
 
 func (p *PGClient) CreateTable() error {
+	operationStart := time.Now()
+	
 	query := `CREATE TABLE IF NOT EXISTS app_data (
 		id SERIAL PRIMARY KEY,
 		key VARCHAR(255) UNIQUE NOT NULL,
@@ -224,7 +235,17 @@ func (p *PGClient) CreateTable() error {
 
 	log.Printf("[POSTGRES] Executing CREATE TABLE query...")
 	log.Printf("[POSTGRES] Query: %s", query)
-	return p.executeQuery(query)
+	
+	err := p.executeQuery(query)
+	
+	totalLatency := time.Since(operationStart)
+	log.Printf("[POSTGRES] CREATE TABLE completed (total latency: %v)", totalLatency)
+	
+	if p.metricsRegistry != nil {
+		p.metricsRegistry.SetGauge("postgres_operation_latency_seconds", totalLatency.Seconds(), map[string]string{"operation": "create_table"})
+	}
+	
+	return err
 }
 
 func (p *PGClient) executeQuery(query string) error {

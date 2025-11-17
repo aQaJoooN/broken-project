@@ -11,8 +11,17 @@ import (
 )
 
 type RedisClient struct {
-	conn net.Conn
-	addr string
+	conn            net.Conn
+	addr            string
+	metricsRegistry interface {
+		SetGauge(name string, value float64, labels map[string]string)
+	}
+}
+
+func (r *RedisClient) SetMetricsRegistry(registry interface {
+	SetGauge(name string, value float64, labels map[string]string)
+}) {
+	r.metricsRegistry = registry
 }
 
 func NewRedisClient(addr string) *RedisClient {
@@ -36,6 +45,8 @@ func NewRedisClient(addr string) *RedisClient {
 }
 
 func (r *RedisClient) Set(key, value string) error {
+	operationStart := time.Now()
+	
 	log.Printf("[REDIS] Building RESP command for SET key='%s' value='%s'", key, value)
 	cmd := fmt.Sprintf("*3\r\n$3\r\nSET\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n",
 		len(key), key, len(value), value)
@@ -67,11 +78,19 @@ func (r *RedisClient) Set(key, value string) error {
 		return fmt.Errorf("Redis error: %s", response)
 	}
 
-	log.Printf("[REDIS] SET operation successful")
+	totalLatency := time.Since(operationStart)
+	log.Printf("[REDIS] SET operation successful (total latency: %v)", totalLatency)
+	
+	if r.metricsRegistry != nil {
+		r.metricsRegistry.SetGauge("redis_operation_latency_seconds", totalLatency.Seconds(), map[string]string{"operation": "set"})
+	}
+	
 	return nil
 }
 
 func (r *RedisClient) Get(key string) (string, error) {
+	operationStart := time.Now()
+	
 	log.Printf("[REDIS] Building RESP command for GET key='%s'", key)
 	cmd := fmt.Sprintf("*2\r\n$3\r\nGET\r\n$%d\r\n%s\r\n", len(key), key)
 	
@@ -96,6 +115,10 @@ func (r *RedisClient) Get(key string) (string, error) {
 
 	if strings.HasPrefix(response, "$-1") {
 		log.Printf("[REDIS] Key not found in Redis")
+		totalLatency := time.Since(operationStart)
+		if r.metricsRegistry != nil {
+			r.metricsRegistry.SetGauge("redis_operation_latency_seconds", totalLatency.Seconds(), map[string]string{"operation": "get"})
+		}
 		return "", fmt.Errorf("key not found")
 	}
 
@@ -114,7 +137,13 @@ func (r *RedisClient) Get(key string) (string, error) {
 		
 		reader.ReadString('\n')
 		
-		log.Printf("[REDIS] GET operation successful, value='%s'", string(value))
+		totalLatency := time.Since(operationStart)
+		log.Printf("[REDIS] GET operation successful, value='%s' (total latency: %v)", string(value), totalLatency)
+		
+		if r.metricsRegistry != nil {
+			r.metricsRegistry.SetGauge("redis_operation_latency_seconds", totalLatency.Seconds(), map[string]string{"operation": "get"})
+		}
+		
 		return string(value), nil
 	}
 

@@ -23,6 +23,7 @@ type LoadStats struct {
 	DurationSeconds float64
 	KeysPerSecond   float64
 	Keys            []string
+	Values          []string
 }
 
 func generateRandomString(length int) string {
@@ -50,11 +51,13 @@ func LoadRedis(client *redis_gateway.RedisClient) (*LoadStats, error) {
 	stats := &LoadStats{
 		TotalKeys: KeyCount,
 		Keys:      make([]string, 0, KeyCount),
+		Values:    make([]string, 0, KeyCount),
 	}
 
 	startTime := time.Now()
 	log.Printf("[LOAD-REDIS] Load test started at %s", startTime.Format(time.RFC3339))
 	log.Printf("[LOAD-REDIS] Initializing keys array with capacity %d", KeyCount)
+	log.Printf("[LOAD-REDIS] Initializing values array with capacity %d", KeyCount)
 
 	for i := 0; i < KeyCount; i++ {
 		batchNum := i / BatchSize
@@ -85,7 +88,8 @@ func LoadRedis(client *redis_gateway.RedisClient) (*LoadStats, error) {
 			stats.SuccessfulKeys++
 			stats.TotalBytes += int64(len(key) + len(value))
 			stats.Keys = append(stats.Keys, key)
-			log.Printf("[LOAD-REDIS] Key #%d set successfully in %v (stored in array)", i+1, setDuration)
+			stats.Values = append(stats.Values, value)
+			log.Printf("[LOAD-REDIS] Key #%d set successfully in %v (stored key and value in arrays)", i+1, setDuration)
 		}
 
 		if (i+1)%100 == 0 {
@@ -111,11 +115,14 @@ func LoadRedis(client *redis_gateway.RedisClient) (*LoadStats, error) {
 	log.Printf("[LOAD-REDIS]   - Successful: %d", stats.SuccessfulKeys)
 	log.Printf("[LOAD-REDIS]   - Failed: %d", stats.FailedKeys)
 	log.Printf("[LOAD-REDIS]   - Keys Stored in Array: %d", len(stats.Keys))
+	log.Printf("[LOAD-REDIS]   - Values Stored in Array: %d", len(stats.Values))
 	log.Printf("[LOAD-REDIS]   - Total Data: %.2f MB", float64(stats.TotalBytes)/1024/1024)
 	log.Printf("[LOAD-REDIS]   - Duration: %.2f seconds", stats.DurationSeconds)
 	log.Printf("[LOAD-REDIS]   - Throughput: %.2f keys/second", stats.KeysPerSecond)
 	log.Printf("[LOAD-REDIS]   - Data Rate: %.2f MB/second", float64(stats.TotalBytes)/1024/1024/stats.DurationSeconds)
-	log.Printf("[LOAD-REDIS]   - Array Memory Usage: %.2f MB", float64(len(stats.Keys)*KeyLength)/1024/1024)
+	log.Printf("[LOAD-REDIS]   - Keys Array Memory: %.2f MB", float64(len(stats.Keys)*KeyLength)/1024/1024)
+	log.Printf("[LOAD-REDIS]   - Values Array Memory: %.2f MB", float64(len(stats.Values)*ValueLength)/1024/1024)
+	log.Printf("[LOAD-REDIS]   - Total Array Memory: %.2f MB", float64(len(stats.Keys)*KeyLength+len(stats.Values)*ValueLength)/1024/1024)
 	log.Println("[LOAD-REDIS] ========================================")
 
 	if stats.FailedKeys > 0 {

@@ -31,6 +31,8 @@ var (
 	metricsRegistry *metrics.Registry
 	loadedKeys      []string
 	loadedKeysMutex sync.RWMutex
+	loadedValues    []string
+	loadedValuesMutex sync.RWMutex
 )
 
 func main() {
@@ -61,12 +63,16 @@ func main() {
 	redisClient := redis_gateway.NewRedisClient(redisHost + ":" + redisPort)
 	defer redisClient.Close()
 	log.Printf("[REDIS] Connected successfully in %v", time.Since(startTime))
+	redisClient.SetMetricsRegistry(metricsRegistry)
+	log.Println("[REDIS] Metrics registry attached to Redis client")
 
 	log.Printf("[POSTGRES] Attempting to connect to PostgreSQL at %s:%s...", pgHost, pgPort)
 	startTime = time.Now()
 	pgClient := pg_gateway.NewPGClient(pgHost, pgPort, pgUser, pgPass, pgDB)
 	defer pgClient.Close()
 	log.Printf("[POSTGRES] Connected successfully in %v", time.Since(startTime))
+	pgClient.SetMetricsRegistry(metricsRegistry)
+	log.Println("[POSTGRES] Metrics registry attached to PostgreSQL client")
 
 	log.Println("[POSTGRES] Creating database table if not exists...")
 	if err := pgClient.CreateTable(); err != nil {
@@ -78,6 +84,10 @@ func main() {
 	log.Println("[MONITOR] Starting memory monitoring goroutine...")
 	go usage.MonitorMemory(metricsRegistry)
 	log.Println("[MONITOR] Memory monitoring started")
+	
+	log.Println("[MONITOR] Starting array keeper goroutine to prevent GC...")
+	go keepArraysAlive()
+	log.Println("[MONITOR] Array keeper started")
 
 	metricsRegistry.SetGauge("redis_connection_status", 1, map[string]string{})
 	metricsRegistry.SetGauge("postgres_connection_status", 1, map[string]string{})
@@ -208,14 +218,23 @@ func main() {
 				metricsRegistry.SetGauge("redis_load_test_throughput_keys_per_sec", stats.KeysPerSecond, map[string]string{})
 				metricsRegistry.SetGauge("redis_load_test_total_bytes", float64(stats.TotalBytes), map[string]string{})
 				
-				log.Printf("[LOAD:%s] Storing %d keys in application memory...", requestID, len(stats.Keys))
+				log.Printf("[LOAD:%s] Storing %d keys and %d values in application memory...", requestID, len(stats.Keys), len(stats.Values))
 				loadedKeysMutex.Lock()
 				loadedKeys = stats.Keys
 				loadedKeysMutex.Unlock()
+				
+				loadedValuesMutex.Lock()
+				loadedValues = stats.Values
+				loadedValuesMutex.Unlock()
+				
 				log.Printf("[LOAD:%s] Keys stored in application array (total: %d keys)", requestID, len(loadedKeys))
-				log.Printf("[LOAD:%s] Array memory usage: %.2f MB", requestID, float64(len(loadedKeys)*4096)/1024/1024)
+				log.Printf("[LOAD:%s] Values stored in application array (total: %d values)", requestID, len(loadedValues))
+				log.Printf("[LOAD:%s] Keys array memory usage: %.2f MB", requestID, float64(len(loadedKeys)*4096)/1024/1024)
+				log.Printf("[LOAD:%s] Values array memory usage: %.2f MB", requestID, float64(len(loadedValues)*10000)/1024/1024)
+				log.Printf("[LOAD:%s] Total array memory usage: %.2f MB", requestID, float64(len(loadedKeys)*4096+len(loadedValues)*10000)/1024/1024)
 				
 				metricsRegistry.SetGauge("app_loaded_keys_count", float64(len(loadedKeys)), map[string]string{})
+				metricsRegistry.SetGauge("app_loaded_values_count", float64(len(loadedValues)), map[string]string{})
 			}
 			
 			log.Printf("[LOAD:%s] Load test completed in %v", requestID, loadDuration)
@@ -257,4 +276,45 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func keepArraysAlive() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	
+	iteration := 0
+	for range ticker.C {
+		iteration++
+		
+		loadedKeysMutex.RLock()
+		keysLen := len(loadedKeys)
+		var keysSample string
+		if keysLen > 0 {
+			keysSample = loadedKeys[0][:min(50, len(loadedKeys[0]))]
+		}
+		loadedKeysMutex.RUnlock()
+		
+		loadedValuesMutex.RLock()
+		valuesLen := len(loadedValues)
+		var valuesSample string
+		if valuesLen > 0 {
+			valuesSample = loadedValues[0][:min(50, len(loadedValues[0]))]
+		}
+		loadedValuesMutex.RUnlock()
+		
+		log.Printf("[KEEPER] Iteration #%d - Keeping arrays alive", iteration)
+		log.Printf("[KEEPER] Keys array: %d elements, sample: %s...", keysLen, keysSample)
+		log.Printf("[KEEPER] Values array: %d elements, sample: %s...", valuesLen, valuesSample)
+		log.Printf("[KEEPER] Total memory held: %.2f MB", float64(keysLen*4096+valuesLen*10000)/1024/1024)
+		
+		runtime.KeepAlive(loadedKeys)
+		runtime.KeepAlive(loadedValues)
+	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

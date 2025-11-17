@@ -81,59 +81,93 @@ func (r *Registry) Export() string {
 	log.Println("[METRICS] Exporting metrics in Prometheus format")
 	var output strings.Builder
 
+	allCounters := map[string]map[string]string{
+		"api_requests_total": {
+			"help": "Total number of API requests by method, endpoint and status",
+		},
+		"redis_operations_total": {
+			"help": "Total number of Redis operations by operation type and status",
+		},
+		"redis_load_test_runs_total": {
+			"help": "Total number of Redis load test runs by status",
+		},
+	}
+
 	counterCount := 0
-	for name, counters := range r.counters {
-		helpText := "Total count"
-		switch name {
-		case "api_requests_total":
-			helpText = "Total number of API requests by method, endpoint and status"
-		case "redis_operations_total":
-			helpText = "Total number of Redis operations by operation type and status"
-		case "redis_load_test_runs_total":
-			helpText = "Total number of Redis load test runs by status"
-		}
-		
-		output.WriteString(fmt.Sprintf("# HELP %s %s\n", name, helpText))
+	for name, meta := range allCounters {
+		output.WriteString(fmt.Sprintf("# HELP %s %s\n", name, meta["help"]))
 		output.WriteString(fmt.Sprintf("# TYPE %s counter\n", name))
-		for _, counter := range counters {
-			output.WriteString(fmt.Sprintf("%s%s %g\n", name, formatLabels(counter.labels), counter.value))
-			counterCount++
+		
+		if counters, exists := r.counters[name]; exists {
+			for _, counter := range counters {
+				output.WriteString(fmt.Sprintf("%s%s %g\n", name, formatLabels(counter.labels), counter.value))
+				counterCount++
+			}
+		} else {
+			output.WriteString(fmt.Sprintf("%s 0\n", name))
 		}
 	}
 
+	allGauges := map[string]map[string]string{
+		"app_memory_usage_bytes": {
+			"help": "Current application memory usage in bytes by type",
+		},
+		"app_goroutines": {
+			"help": "Current number of goroutines running in the application",
+		},
+		"app_gc_runs_total": {
+			"help": "Total number of garbage collection runs",
+		},
+		"redis_connection_status": {
+			"help": "Redis connection status (1=connected, 0=disconnected)",
+		},
+		"postgres_connection_status": {
+			"help": "PostgreSQL connection status (1=connected, 0=disconnected)",
+		},
+		"redis_load_test_duration_seconds": {
+			"help": "Duration of the last Redis load test in seconds",
+		},
+		"redis_load_test_throughput_keys_per_sec": {
+			"help": "Throughput of the last Redis load test in keys per second",
+		},
+		"redis_load_test_successful_keys": {
+			"help": "Number of successfully loaded keys in the last Redis load test",
+		},
+		"redis_load_test_failed_keys": {
+			"help": "Number of failed keys in the last Redis load test",
+		},
+		"redis_load_test_total_bytes": {
+			"help": "Total bytes written in the last Redis load test",
+		},
+		"app_loaded_keys_count": {
+			"help": "Number of keys currently stored in application memory from load test",
+		},
+		"app_loaded_values_count": {
+			"help": "Number of values currently stored in application memory from load test",
+		},
+		"http_request_duration_seconds": {
+			"help": "HTTP request duration in seconds by endpoint",
+		},
+		"redis_operation_latency_seconds": {
+			"help": "Redis operation latency in seconds by operation type",
+		},
+		"postgres_operation_latency_seconds": {
+			"help": "PostgreSQL operation latency in seconds by operation type",
+		},
+	}
+
 	gaugeCount := 0
-	for name, gauges := range r.gauges {
-		helpText := "Current value"
-		switch name {
-		case "app_memory_usage_bytes":
-			helpText = "Current application memory usage in bytes by type (alloc, total_alloc, sys)"
-		case "app_goroutines":
-			helpText = "Current number of goroutines running in the application"
-		case "redis_connection_status":
-			helpText = "Redis connection status (1=connected, 0=disconnected)"
-		case "postgres_connection_status":
-			helpText = "PostgreSQL connection status (1=connected, 0=disconnected)"
-		case "redis_load_test_duration_seconds":
-			helpText = "Duration of the last Redis load test in seconds"
-		case "redis_load_test_throughput_keys_per_sec":
-			helpText = "Throughput of the last Redis load test in keys per second"
-		case "redis_load_test_successful_keys":
-			helpText = "Number of successfully loaded keys in the last Redis load test"
-		case "redis_load_test_failed_keys":
-			helpText = "Number of failed keys in the last Redis load test"
-		case "redis_load_test_total_bytes":
-			helpText = "Total bytes written in the last Redis load test"
-		case "http_request_duration_seconds":
-			helpText = "HTTP request duration in seconds by endpoint"
-		case "app_loaded_keys_count":
-			helpText = "Number of keys currently stored in application memory from load test"
-		}
-		
-		output.WriteString(fmt.Sprintf("# HELP %s %s\n", name, helpText))
+	for name, meta := range allGauges {
+		output.WriteString(fmt.Sprintf("# HELP %s %s\n", name, meta["help"]))
 		output.WriteString(fmt.Sprintf("# TYPE %s gauge\n", name))
-		for _, gauge := range gauges {
-			output.WriteString(fmt.Sprintf("%s%s %g\n", name, formatLabels(gauge.labels), gauge.value))
-			gaugeCount++
+		
+		if gauges, exists := r.gauges[name]; exists {
+			for _, gauge := range gauges {
+				output.WriteString(fmt.Sprintf("%s%s %g\n", name, formatLabels(gauge.labels), gauge.value))
+				gaugeCount++
+			}
+		} else {
+			output.WriteString(fmt.Sprintf("%s 0\n", name))
 		}
 	}
 

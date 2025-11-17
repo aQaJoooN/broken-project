@@ -25,12 +25,17 @@ func MonitorMemory(registry *metrics.Registry) {
 		log.Printf("[USAGE] Memory stats - Alloc: %d bytes (%.2f MB)", m.Alloc, float64(m.Alloc)/1024/1024)
 		log.Printf("[USAGE] Memory stats - TotalAlloc: %d bytes (%.2f MB)", m.TotalAlloc, float64(m.TotalAlloc)/1024/1024)
 		log.Printf("[USAGE] Memory stats - Sys: %d bytes (%.2f MB)", m.Sys, float64(m.Sys)/1024/1024)
+		log.Printf("[USAGE] Memory stats - HeapAlloc: %d bytes (%.2f MB)", m.HeapAlloc, float64(m.HeapAlloc)/1024/1024)
+		log.Printf("[USAGE] Memory stats - HeapInuse: %d bytes (%.2f MB)", m.HeapInuse, float64(m.HeapInuse)/1024/1024)
 		log.Printf("[USAGE] Memory stats - NumGC: %d", m.NumGC)
 		log.Printf("[USAGE] Memory stats - NumGoroutine: %d", runtime.NumGoroutine())
 
 		registry.SetGauge("app_memory_usage_bytes", float64(m.Alloc), map[string]string{"type": "alloc"})
 		registry.SetGauge("app_memory_usage_bytes", float64(m.TotalAlloc), map[string]string{"type": "total_alloc"})
 		registry.SetGauge("app_memory_usage_bytes", float64(m.Sys), map[string]string{"type": "sys"})
+		registry.SetGauge("app_memory_usage_bytes", float64(m.HeapAlloc), map[string]string{"type": "heap_alloc"})
+		registry.SetGauge("app_memory_usage_bytes", float64(m.HeapInuse), map[string]string{"type": "heap_inuse"})
+		registry.SetGauge("app_gc_runs_total", float64(m.NumGC), map[string]string{})
 		
 		log.Printf("[USAGE] Metrics updated successfully")
 	}
