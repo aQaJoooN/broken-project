@@ -31,3 +31,42 @@ document.getElementById('setForm').addEventListener('submit', async (e) => {
         resultDiv.textContent = `✗ Error: ${error.message}`;
     }
 });
+
+document.getElementById('loadBtn').addEventListener('click', async () => {
+    const loadBtn = document.getElementById('loadBtn');
+    const loadResultDiv = document.getElementById('loadResult');
+    
+    loadBtn.disabled = true;
+    loadBtn.textContent = 'Loading...';
+    loadResultDiv.className = 'result info';
+    loadResultDiv.textContent = '⏳ Starting Redis load test... This may take several minutes.';
+    
+    try {
+        const response = await fetch('http://localhost:8080/api/load', {
+            method: 'GET'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            loadResultDiv.className = 'result success';
+            loadResultDiv.textContent = `✓ ${data.message} - Check server logs for progress. This will take a few minutes.`;
+            
+            setTimeout(() => {
+                loadBtn.disabled = false;
+                loadBtn.textContent = 'Load on Redis';
+            }, 5000);
+        } else {
+            loadResultDiv.className = 'result error';
+            loadResultDiv.textContent = `✗ ${data.message}`;
+            loadBtn.disabled = false;
+            loadBtn.textContent = 'Load on Redis';
+        }
+        
+    } catch (error) {
+        loadResultDiv.className = 'result error';
+        loadResultDiv.textContent = `✗ Error: ${error.message}`;
+        loadBtn.disabled = false;
+        loadBtn.textContent = 'Load on Redis';
+    }
+});

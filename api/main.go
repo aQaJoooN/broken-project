@@ -6,8 +6,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
+	"sync"
 	"time"
 
+	"api/internal/load_redis"
 	"api/internal/metrics"
 	"api/internal/pg_gateway"
 	"api/internal/redis_gateway"
@@ -24,7 +27,11 @@ type Response struct {
 	Message string `json:"message"`
 }
 
-var metricsRegistry *metrics.Registry
+var (
+	metricsRegistry *metrics.Registry
+	loadedKeys      []string
+	loadedKeysMutex sync.RWMutex
+)
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
@@ -72,9 +79,14 @@ func main() {
 	go usage.MonitorMemory(metricsRegistry)
 	log.Println("[MONITOR] Memory monitoring started")
 
+	metricsRegistry.SetGauge("redis_connection_status", 1, map[string]string{})
+	metricsRegistry.SetGauge("postgres_connection_status", 1, map[string]string{})
+
 	log.Println("[HTTP] Registering /api/set endpoint...")
 	http.HandleFunc("/api/set", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		requestID := fmt.Sprintf("%d", time.Now().UnixNano())
+		requestStart := time.Now()
+		
 		log.Printf("[REQUEST:%s] Incoming %s request to /api/set from %s", requestID, r.Method, r.RemoteAddr)
 		log.Printf("[REQUEST:%s] Headers: %v", requestID, r.Header)
 		
@@ -106,14 +118,26 @@ func main() {
 			metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
 				"method": r.Method, "endpoint": "/api/set", "status": "500",
 			})
+			metricsRegistry.IncrementCounter("redis_operations_total", map[string]string{
+				"operation": "set", "status": "error",
+			})
 			json.NewEncoder(w).Encode(Response{Success: false, Message: err.Error()})
 			return
 		}
-		log.Printf("[REQUEST:%s] Redis SET completed in %v", requestID, time.Since(setStart))
+		setDuration := time.Since(setStart)
+		log.Printf("[REQUEST:%s] Redis SET completed in %v", requestID, setDuration)
 
 		metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
 			"method": r.Method, "endpoint": "/api/set", "status": "200",
 		})
+		metricsRegistry.IncrementCounter("redis_operations_total", map[string]string{
+			"operation": "set", "status": "success",
+		})
+		metricsRegistry.SetGauge("http_request_duration_seconds", time.Since(requestStart).Seconds(), map[string]string{
+			"endpoint": "/api/set",
+		})
+		metricsRegistry.SetGauge("app_goroutines", float64(runtime.NumGoroutine()), map[string]string{})
+		
 		log.Printf("[REQUEST:%s] SUCCESS: Key '%s' set successfully", requestID, req.Key)
 		log.Printf("[REQUEST:%s] Sending response to client", requestID)
 		
@@ -138,11 +162,73 @@ func main() {
 	})
 	log.Println("[HTTP] /metrics endpoint registered")
 
+	log.Println("[HTTP] Registering /api/load endpoint...")
+	http.HandleFunc("/api/load", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		requestID := fmt.Sprintf("%d", time.Now().UnixNano())
+		log.Printf("[LOAD:%s] Incoming %s request to /api/load from %s", requestID, r.Method, r.RemoteAddr)
+		
+		if r.Method != http.MethodGet {
+			log.Printf("[LOAD:%s] ERROR: Method not allowed: %s", requestID, r.Method)
+			metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
+				"method": r.Method, "endpoint": "/api/load", "status": "405",
+			})
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		log.Printf("[LOAD:%s] Starting Redis load test...", requestID)
+		metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
+			"method": r.Method, "endpoint": "/api/load", "status": "202",
+		})
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(Response{Success: true, Message: "Load test started"})
+		log.Printf("[LOAD:%s] Response sent, starting load test in background", requestID)
+
+		go func() {
+			log.Printf("[LOAD:%s] Background load test initiated", requestID)
+			loadStart := time.Now()
+			
+			metricsRegistry.IncrementCounter("redis_load_test_runs_total", map[string]string{"status": "started"})
+			
+			stats, err := load_redis.LoadRedis(redisClient)
+			loadDuration := time.Since(loadStart)
+			
+			if err != nil {
+				log.Printf("[LOAD:%s] ERROR: Load test failed: %v", requestID, err)
+				metricsRegistry.IncrementCounter("redis_load_test_runs_total", map[string]string{"status": "failed"})
+				metricsRegistry.SetGauge("redis_load_test_failed_keys", float64(stats.FailedKeys), map[string]string{})
+			} else {
+				log.Printf("[LOAD:%s] SUCCESS: Load test completed", requestID)
+				metricsRegistry.IncrementCounter("redis_load_test_runs_total", map[string]string{"status": "success"})
+				metricsRegistry.SetGauge("redis_load_test_successful_keys", float64(stats.SuccessfulKeys), map[string]string{})
+				metricsRegistry.SetGauge("redis_load_test_failed_keys", float64(stats.FailedKeys), map[string]string{})
+				metricsRegistry.SetGauge("redis_load_test_duration_seconds", stats.DurationSeconds, map[string]string{})
+				metricsRegistry.SetGauge("redis_load_test_throughput_keys_per_sec", stats.KeysPerSecond, map[string]string{})
+				metricsRegistry.SetGauge("redis_load_test_total_bytes", float64(stats.TotalBytes), map[string]string{})
+				
+				log.Printf("[LOAD:%s] Storing %d keys in application memory...", requestID, len(stats.Keys))
+				loadedKeysMutex.Lock()
+				loadedKeys = stats.Keys
+				loadedKeysMutex.Unlock()
+				log.Printf("[LOAD:%s] Keys stored in application array (total: %d keys)", requestID, len(loadedKeys))
+				log.Printf("[LOAD:%s] Array memory usage: %.2f MB", requestID, float64(len(loadedKeys)*4096)/1024/1024)
+				
+				metricsRegistry.SetGauge("app_loaded_keys_count", float64(len(loadedKeys)), map[string]string{})
+			}
+			
+			log.Printf("[LOAD:%s] Load test completed in %v", requestID, loadDuration)
+		}()
+	}))
+	log.Println("[HTTP] /api/load endpoint registered")
+
 	log.Println("========================================")
 	log.Println("API SERVER READY")
 	log.Println("Listening on :8080")
 	log.Println("Endpoints:")
 	log.Println("  - POST /api/set")
+	log.Println("  - GET  /api/load")
 	log.Println("  - GET  /metrics")
 	log.Println("========================================")
 	
@@ -154,7 +240,7 @@ func main() {
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		
 		if r.Method == "OPTIONS" {

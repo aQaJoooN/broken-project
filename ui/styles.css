@@ -130,3 +130,38 @@ input[type="text"]:focus {
 .info a:hover {
     text-decoration: underline;
 }
+
+.info a:hover {
+    text-decoration: underline;
+}
+
+.load-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    color: #555;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.btn-load {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.btn-load:hover {
+    box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+}
+
+.btn-load:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.result.info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+    display: block;
+}

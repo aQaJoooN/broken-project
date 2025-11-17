@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redis Key-Value Manager</title>
+    <title>Broken Application</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <h1>Redis Key-Value Manager</h1>
+        <h1>Broken Application</h1>
         
         <div class="card">
-            <h2>Set Key-Value Pair</h2>
+            <h2>Redis</h2>
             <form id="setForm">
                 <div class="form-group">
                     <label for="key">Key:</label>
@@ -29,8 +29,16 @@
             <div id="result" class="result"></div>
         </div>
 
+        <div class="card">
+            <h2>Redis Load Test</h2>
+            <button id="loadBtn" class="btn btn-load">Load on Redis</button>
+            <div id="loadResult" class="result"></div>
+        </div>
+
         <div class="info">
-            <p><strong>API Endpoint:</strong> <a href="http://localhost:8080/api/set" target="_blank">http://localhost:8080/api/set</a></p>
+            <p><strong>API Endpoints:</strong></p>
+            <p>• <a href="http://localhost:8080/api/set" target="_blank">http://localhost:8080/api/set</a> (POST)</p>
+            <p>• <a href="http://localhost:8080/api/load" target="_blank">http://localhost:8080/api/load</a> (GET)</p>
             <p><strong>Metrics:</strong> <a href="http://localhost:8080/metrics" target="_blank">http://localhost:8080/metrics</a></p>
         </div>
     </div>
