@@ -70,3 +70,42 @@ document.getElementById('loadBtn').addEventListener('click', async () => {
         loadBtn.textContent = 'Load on Redis';
     }
 });
+
+document.getElementById('loadDbBtn').addEventListener('click', async () => {
+    const loadDbBtn = document.getElementById('loadDbBtn');
+    const loadDbResultDiv = document.getElementById('loadDbResult');
+    
+    loadDbBtn.disabled = true;
+    loadDbBtn.textContent = 'Loading...';
+    loadDbResultDiv.className = 'result info';
+    loadDbResultDiv.textContent = '⏳ Starting database load test... Opening 200 connections.';
+    
+    try {
+        const response = await fetch('http://localhost:8080/api/load-db', {
+            method: 'GET'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            loadDbResultDiv.className = 'result success';
+            loadDbResultDiv.textContent = `✓ ${data.message} - Check server logs for progress.`;
+            
+            setTimeout(() => {
+                loadDbBtn.disabled = false;
+                loadDbBtn.textContent = 'Load on DataBase';
+            }, 5000);
+        } else {
+            loadDbResultDiv.className = 'result error';
+            loadDbResultDiv.textContent = `✗ ${data.message}`;
+            loadDbBtn.disabled = false;
+            loadDbBtn.textContent = 'Load on DataBase';
+        }
+        
+    } catch (error) {
+        loadDbResultDiv.className = 'result error';
+        loadDbResultDiv.textContent = `✗ Error: ${error.message}`;
+        loadDbBtn.disabled = false;
+        loadDbBtn.textContent = 'Load on DataBase';
+    }
+});

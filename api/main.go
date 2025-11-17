@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"api/internal/load_db"
 	"api/internal/load_redis"
 	"api/internal/metrics"
 	"api/internal/pg_gateway"
@@ -88,6 +89,14 @@ func main() {
 	log.Println("[MONITOR] Starting array keeper goroutine to prevent GC...")
 	go keepArraysAlive()
 	log.Println("[MONITOR] Array keeper started")
+	
+	log.Println("[MONITOR] Starting database connections keeper goroutine...")
+	go load_db.KeepConnectionsAlive()
+	log.Println("[MONITOR] Database connections keeper started")
+	
+	log.Println("[MONITOR] Starting database connection keeper goroutine...")
+	go load_db.KeepConnectionsAlive()
+	log.Println("[MONITOR] Database connection keeper started")
 
 	metricsRegistry.SetGauge("redis_connection_status", 1, map[string]string{})
 	metricsRegistry.SetGauge("postgres_connection_status", 1, map[string]string{})
@@ -242,12 +251,63 @@ func main() {
 	}))
 	log.Println("[HTTP] /api/load endpoint registered")
 
+	log.Println("[HTTP] Registering /api/load-db endpoint...")
+	http.HandleFunc("/api/load-db", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		requestID := fmt.Sprintf("%d", time.Now().UnixNano())
+		log.Printf("[LOAD-DB:%s] Incoming %s request to /api/load-db from %s", requestID, r.Method, r.RemoteAddr)
+		
+		if r.Method != http.MethodGet {
+			log.Printf("[LOAD-DB:%s] ERROR: Method not allowed: %s", requestID, r.Method)
+			metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
+				"method": r.Method, "endpoint": "/api/load-db", "status": "405",
+			})
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		log.Printf("[LOAD-DB:%s] Starting database load test...", requestID)
+		metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
+			"method": r.Method, "endpoint": "/api/load-db", "status": "202",
+		})
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(Response{Success: true, Message: "Database load test started"})
+		log.Printf("[LOAD-DB:%s] Response sent, starting load test in background", requestID)
+
+		go func() {
+			log.Printf("[LOAD-DB:%s] Background database load test initiated", requestID)
+			loadStart := time.Now()
+			
+			metricsRegistry.IncrementCounter("db_load_test_runs_total", map[string]string{"status": "started"})
+			
+			stats, err := load_db.LoadDatabase(pgHost, pgPort, pgUser, pgPass, pgDB)
+			loadDuration := time.Since(loadStart)
+			
+			if err != nil {
+				log.Printf("[LOAD-DB:%s] ERROR: Database load test failed: %v", requestID, err)
+				metricsRegistry.IncrementCounter("db_load_test_runs_total", map[string]string{"status": "failed"})
+			} else {
+				log.Printf("[LOAD-DB:%s] SUCCESS: Database load test completed", requestID)
+				metricsRegistry.IncrementCounter("db_load_test_runs_total", map[string]string{"status": "success"})
+				metricsRegistry.SetGauge("db_load_test_connections", float64(stats.SuccessfulConnections), map[string]string{})
+				metricsRegistry.SetGauge("db_load_test_duration_seconds", stats.DurationSeconds, map[string]string{})
+				metricsRegistry.SetGauge("db_load_test_avg_latency_seconds", stats.AverageLatencySeconds, map[string]string{})
+				metricsRegistry.SetGauge("db_active_connections_count", float64(load_db.GetActiveConnectionsCount()), map[string]string{})
+			}
+			
+			log.Printf("[LOAD-DB:%s] Database load test completed in %v", requestID, loadDuration)
+		}()
+	}))
+	log.Println("[HTTP] /api/load-db endpoint registered")
+
 	log.Println("========================================")
 	log.Println("API SERVER READY")
 	log.Println("Listening on :8080")
 	log.Println("Endpoints:")
 	log.Println("  - POST /api/set")
 	log.Println("  - GET  /api/load")
+	log.Println("  - GET  /api/load-db")
 	log.Println("  - GET  /metrics")
 	log.Println("========================================")
 	

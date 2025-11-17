@@ -165,3 +165,17 @@ input[type="text"]:focus {
     border: 1px solid #bee5eb;
     display: block;
 }
+
+.btn-load-db {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.btn-load-db:hover {
+    box-shadow: 0 5px 15px rgba(56, 239, 125, 0.4);
+}
+
+.btn-load-db:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}

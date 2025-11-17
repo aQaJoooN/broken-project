@@ -91,6 +91,9 @@ func (r *Registry) Export() string {
 		"redis_load_test_runs_total": {
 			"help": "Total number of Redis load test runs by status",
 		},
+		"db_load_test_runs_total": {
+			"help": "Total number of database load test runs by status",
+		},
 	}
 
 	counterCount := 0
@@ -153,6 +156,21 @@ func (r *Registry) Export() string {
 		},
 		"postgres_operation_latency_seconds": {
 			"help": "PostgreSQL operation latency in seconds by operation type",
+		},
+		"db_load_test_successful_connections": {
+			"help": "Number of successful database connections in the last load test",
+		},
+		"db_load_test_failed_connections": {
+			"help": "Number of failed database connections in the last load test",
+		},
+		"db_load_test_duration_seconds": {
+			"help": "Duration of the last database load test in seconds",
+		},
+		"db_load_test_average_latency_seconds": {
+			"help": "Average connection latency in the last database load test",
+		},
+		"db_active_connections_count": {
+			"help": "Number of active database connections being kept alive",
 		},
 	}
 
