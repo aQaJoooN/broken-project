@@ -6,7 +6,7 @@ document.getElementById('setForm').addEventListener('submit', async (e) => {
     const resultDiv = document.getElementById('result');
     
     try {
-        const response = await fetch('http://localhost:8080/api/set', {
+        const response = await fetch(getApiUrl('set'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -42,7 +42,7 @@ document.getElementById('loadBtn').addEventListener('click', async () => {
     loadResultDiv.textContent = '⏳ Starting Redis load test... This may take several minutes.';
     
     try {
-        const response = await fetch('http://localhost:8080/api/load', {
+        const response = await fetch(getApiUrl('load'), {
             method: 'GET'
         });
         
@@ -81,7 +81,7 @@ document.getElementById('loadDbBtn').addEventListener('click', async () => {
     loadDbResultDiv.textContent = '⏳ Starting database load test... Opening 200 connections.';
     
     try {
-        const response = await fetch('http://localhost:8080/api/load-db', {
+        const response = await fetch(getApiUrl('loadDb'), {
             method: 'GET'
         });
         
@@ -108,4 +108,19 @@ document.getElementById('loadDbBtn').addEventListener('click', async () => {
         loadDbBtn.disabled = false;
         loadDbBtn.textContent = 'Load on DataBase';
     }
+});
+
+// Initialize links on page load
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('link-set').href = getApiUrl('set');
+    document.getElementById('link-set').textContent = getApiUrl('set');
+    
+    document.getElementById('link-load').href = getApiUrl('load');
+    document.getElementById('link-load').textContent = getApiUrl('load');
+    
+    document.getElementById('link-load-db').href = getApiUrl('loadDb');
+    document.getElementById('link-load-db').textContent = getApiUrl('loadDb');
+    
+    document.getElementById('link-metrics').href = getApiUrl('metrics');
+    document.getElementById('link-metrics').textContent = getApiUrl('metrics');
 });
