@@ -327,19 +327,19 @@ docker-compose up --build
 ```
 
 ### Access Points
-- UI: http://localhost:3000
+- UI: http://localhost:8090
 - API: http://localhost:8080
 - Metrics: http://localhost:8080/metrics
 
 ### Run Redis Load Test from UI
-1. Open http://localhost:3000 in your browser
+1. Open http://localhost:8090 in your browser
 2. Scroll to "Redis Load Test" section
 3. Click "Load on Redis" button
 4. Monitor server logs: `docker-compose logs -f api`
 5. Memory will increase by ~68 MB and stay there
 
 ### Run Database Load Test from UI
-1. Open http://localhost:3000 in your browser
+1. Open http://localhost:8090 in your browser
 2. Scroll to "Database Load Test" section
 3. Click "Load on DataBase" button
 4. Monitor server logs: `docker-compose logs -f api`

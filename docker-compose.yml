@@ -33,7 +33,7 @@ services:
       context: ./ui
       dockerfile: Dockerfile
     ports:
-      - "3000:80"
+      - "8090:80"
     depends_on:
       - api
     networks:

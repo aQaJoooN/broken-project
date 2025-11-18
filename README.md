@@ -19,7 +19,7 @@ docker-compose up --build
 
 ## Access Points
 
-- **UI**: http://localhost:3000
+- **UI**: http://localhost:8090
 - **API**: http://localhost:8080
 - **Metrics**: http://localhost:8080/metrics
 
