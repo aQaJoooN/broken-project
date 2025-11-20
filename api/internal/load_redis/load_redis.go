@@ -68,12 +68,21 @@ func LoadRedis(client *redis_gateway.RedisClient) (*LoadStats, error) {
 				batchNum+1, (KeyCount+BatchSize-1)/BatchSize, i, min(i+BatchSize-1, KeyCount-1))
 		}
 
-		key := fmt.Sprintf("load_test_key_%d_%s", i, generateRandomString(KeyLength-20))
-		value := generateRandomString(ValueLength)
-
-		if len(key) != KeyLength {
-			key = key[:KeyLength]
+		keyPrefix := fmt.Sprintf("load_test_key_%d_", i)
+		remainingLength := KeyLength - len(keyPrefix)
+		if remainingLength < 0 {
+			remainingLength = 0
 		}
+		key := keyPrefix + generateRandomString(remainingLength)
+		
+		// Ensure exact length
+		if len(key) > KeyLength {
+			key = key[:KeyLength]
+		} else if len(key) < KeyLength {
+			key = key + generateRandomString(KeyLength-len(key))
+		}
+		
+		value := generateRandomString(ValueLength)
 
 		log.Printf("[LOAD-REDIS] Setting key #%d (key_len=%d, val_len=%d)", i+1, len(key), len(value))
 		
