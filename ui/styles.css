@@ -135,7 +135,7 @@ input[type="text"]:focus {
     text-decoration: underline;
 }
 
-.load-info {
+.app-info {
     background: #f8f9fa;
     padding: 15px;
     border-radius: 8px;
@@ -145,15 +145,15 @@ input[type="text"]:focus {
     line-height: 1.6;
 }
 
-.btn-load {
+.btn-func1 {
     background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }
 
-.btn-load:hover {
+.btn-func1:hover {
     box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
 }
 
-.btn-load:disabled {
+.btn-func1:disabled {
     background: #ccc;
     cursor: not-allowed;
     transform: none;
@@ -166,15 +166,15 @@ input[type="text"]:focus {
     display: block;
 }
 
-.btn-load-db {
+.btn-func2 {
     background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
 }
 
-.btn-load-db:hover {
+.btn-func2:hover {
     box-shadow: 0 5px 15px rgba(56, 239, 125, 0.4);
 }
 
-.btn-load-db:disabled {
+.btn-func2:disabled {
     background: #ccc;
     cursor: not-allowed;
     transform: none;

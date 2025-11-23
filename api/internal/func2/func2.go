@@ -1,4 +1,4 @@
-package load_db
+package func2
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ const (
 	ConnectionCount = 200
 )
 
-type DBLoadStats struct {
+type Func2Stats struct {
 	TotalConnections       int
 	SuccessfulConnections  int
 	FailedConnections      int
@@ -26,23 +26,23 @@ var (
 	activeConnectionsMutex sync.RWMutex
 )
 
-func LoadDatabase(host, port, user, password, dbname string) (*DBLoadStats, error) {
-	log.Println("[LOAD-DB] ========================================")
-	log.Println("[LOAD-DB] STARTING DATABASE LOAD TEST")
-	log.Println("[LOAD-DB] ========================================")
-	log.Printf("[LOAD-DB] Configuration:")
-	log.Printf("[LOAD-DB]   - Total Connections: %d", ConnectionCount)
-	log.Printf("[LOAD-DB]   - Target: %s:%s", host, port)
-	log.Printf("[LOAD-DB]   - Database: %s", dbname)
-	log.Println("[LOAD-DB] ========================================")
+func Func2Run(host, port, user, password, dbname string) (*Func2Stats, error) {
+	log.Println("[FUNC-2] ========================================")
+	log.Println("[FUNC-2] STARTING Func 2")
+	log.Println("[FUNC-2] ========================================")
+	log.Printf("[FUNC-2] Configuration:")
+	log.Printf("[FUNC-2]   - Total Connections: %d", ConnectionCount)
+	log.Printf("[FUNC-2]   - Target: %s:%s", host, port)
+	log.Printf("[FUNC-2]   - Database: %s", dbname)
+	log.Println("[FUNC-2] ========================================")
 
-	stats := &DBLoadStats{
+	stats := &Func2Stats{
 		TotalConnections: ConnectionCount,
 		Connections:      make([]net.Conn, 0, ConnectionCount),
 	}
 
 	startTime := time.Now()
-	log.Printf("[LOAD-DB] Load test started at %s", startTime.Format(time.RFC3339))
+	log.Printf("[FUNC-2] Func 2  started at %s", startTime.Format(time.RFC3339))
 
 	var totalLatency float64
 	var wg sync.WaitGroup
@@ -53,7 +53,7 @@ func LoadDatabase(host, port, user, password, dbname string) (*DBLoadStats, erro
 		go func(connNum int) {
 			defer wg.Done()
 
-			log.Printf("[LOAD-DB] Opening connection #%d...", connNum+1)
+			log.Printf("[FUNC-2] Opening connection #%d...", connNum+1)
 			connStart := time.Now()
 
 			conn, err := openPostgresConnection(host, port, user, password, dbname)
@@ -63,17 +63,17 @@ func LoadDatabase(host, port, user, password, dbname string) (*DBLoadStats, erro
 			defer mu.Unlock()
 
 			if err != nil {
-				log.Printf("[LOAD-DB] ERROR: Connection #%d failed: %v (latency: %v)", connNum+1, err, connLatency)
+				log.Printf("[FUNC-2] ERROR: Connection #%d failed: %v (latency: %v)", connNum+1, err, connLatency)
 				stats.FailedConnections++
 			} else {
-				log.Printf("[LOAD-DB] Connection #%d established successfully (latency: %v)", connNum+1, connLatency)
+				log.Printf("[FUNC-2] Connection #%d established successfully (latency: %v)", connNum+1, connLatency)
 				stats.SuccessfulConnections++
 				stats.Connections = append(stats.Connections, conn)
 				totalLatency += connLatency.Seconds()
 			}
 
 			if (connNum+1)%20 == 0 {
-				log.Printf("[LOAD-DB] Progress: %d/%d connections (%.1f%%)",
+				log.Printf("[FUNC-2] Progress: %d/%d connections (%.1f%%)",
 					connNum+1, ConnectionCount, float64(connNum+1)/float64(ConnectionCount)*100)
 			}
 		}(i)
@@ -91,26 +91,26 @@ func LoadDatabase(host, port, user, password, dbname string) (*DBLoadStats, erro
 		stats.AverageLatencySeconds = totalLatency / float64(stats.SuccessfulConnections)
 	}
 
-	log.Println("[LOAD-DB] ========================================")
-	log.Println("[LOAD-DB] LOAD TEST COMPLETED")
-	log.Println("[LOAD-DB] ========================================")
-	log.Printf("[LOAD-DB] Results:")
-	log.Printf("[LOAD-DB]   - Total Connections: %d", stats.TotalConnections)
-	log.Printf("[LOAD-DB]   - Successful: %d", stats.SuccessfulConnections)
-	log.Printf("[LOAD-DB]   - Failed: %d", stats.FailedConnections)
-	log.Printf("[LOAD-DB]   - Duration: %.2f seconds", stats.DurationSeconds)
-	log.Printf("[LOAD-DB]   - Average Latency: %.4f seconds", stats.AverageLatencySeconds)
-	log.Printf("[LOAD-DB]   - Connections Rate: %.2f conn/sec", float64(stats.SuccessfulConnections)/stats.DurationSeconds)
-	log.Println("[LOAD-DB] ========================================")
+	log.Println("[FUNC-2] ========================================")
+	log.Println("[FUNC-2] Func 2 COMPLETED")
+	log.Println("[FUNC-2] ========================================")
+	log.Printf("[FUNC-2] Results:")
+	log.Printf("[FUNC-2]   - Total Connections: %d", stats.TotalConnections)
+	log.Printf("[FUNC-2]   - Successful: %d", stats.SuccessfulConnections)
+	log.Printf("[FUNC-2]   - Failed: %d", stats.FailedConnections)
+	log.Printf("[FUNC-2]   - Duration: %.2f seconds", stats.DurationSeconds)
+	log.Printf("[FUNC-2]   - Average Latency: %.4f seconds", stats.AverageLatencySeconds)
+	log.Printf("[FUNC-2]   - Connections Rate: %.2f conn/sec", float64(stats.SuccessfulConnections)/stats.DurationSeconds)
+	log.Println("[FUNC-2] ========================================")
 
-	log.Printf("[LOAD-DB] Storing %d connections in global array to keep them alive...", len(stats.Connections))
+	log.Printf("[FUNC-2] Storing %d connections in global array to keep them alive...", len(stats.Connections))
 	activeConnectionsMutex.Lock()
 	activeConnections = stats.Connections
 	activeConnectionsMutex.Unlock()
-	log.Printf("[LOAD-DB] Connections stored and will remain open")
+	log.Printf("[FUNC-2] Connections stored and will remain open")
 
 	if stats.FailedConnections > 0 {
-		return stats, fmt.Errorf("load test completed with %d failures", stats.FailedConnections)
+		return stats, fmt.Errorf("Func 2 completed with %d failures", stats.FailedConnections)
 	}
 
 	return stats, nil
@@ -176,13 +176,13 @@ func KeepConnectionsAlive() {
 		connCount := len(activeConnections)
 		activeConnectionsMutex.RUnlock()
 
-		log.Printf("[LOAD-DB-KEEPER] Iteration #%d - Keeping %d database connections alive", iteration, connCount)
+		log.Printf("[Func-2-KEEPER] Iteration #%d - Keeping %d database connections alive", iteration, connCount)
 
 		if connCount > 0 {
 			activeConnectionsMutex.RLock()
 			for i, conn := range activeConnections {
 				if conn != nil {
-					log.Printf("[LOAD-DB-KEEPER] Connection #%d: %s -> %s", i+1, conn.LocalAddr(), conn.RemoteAddr())
+					log.Printf("[Func-2-KEEPER] Connection #%d: %s -> %s", i+1, conn.LocalAddr(), conn.RemoteAddr())
 				}
 			}
 			activeConnectionsMutex.RUnlock()

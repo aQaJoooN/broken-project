@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"api/internal/load_db"
-	"api/internal/load_redis"
+	"api/internal/func1"
+	"api/internal/func2"
 	"api/internal/metrics"
 	"api/internal/pg_gateway"
 	"api/internal/redis_gateway"
@@ -91,11 +91,11 @@ func main() {
 	log.Println("[MONITOR] Array keeper started")
 	
 	log.Println("[MONITOR] Starting database connections keeper goroutine...")
-	go load_db.KeepConnectionsAlive()
+	go func2.KeepConnectionsAlive()
 	log.Println("[MONITOR] Database connections keeper started")
 	
 	log.Println("[MONITOR] Starting database connection keeper goroutine...")
-	go load_db.KeepConnectionsAlive()
+	go func2.KeepConnectionsAlive()
 	log.Println("[MONITOR] Database connection keeper started")
 
 	metricsRegistry.SetGauge("redis_connection_status", 1, map[string]string{})
@@ -181,53 +181,53 @@ func main() {
 	})
 	log.Println("[HTTP] /metrics endpoint registered")
 
-	log.Println("[HTTP] Registering /api/load endpoint...")
-	http.HandleFunc("/api/load", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	log.Println("[HTTP] Registering /api/func1 endpoint...")
+	http.HandleFunc("/api/func1", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		requestID := fmt.Sprintf("%d", time.Now().UnixNano())
-		log.Printf("[LOAD:%s] Incoming %s request to /api/load from %s", requestID, r.Method, r.RemoteAddr)
+		log.Printf("[FUNC1:%s] Incoming %s request to /api/func1 from %s", requestID, r.Method, r.RemoteAddr)
 		
 		if r.Method != http.MethodGet {
-			log.Printf("[LOAD:%s] ERROR: Method not allowed: %s", requestID, r.Method)
+			log.Printf("[FUNC1:%s] ERROR: Method not allowed: %s", requestID, r.Method)
 			metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
-				"method": r.Method, "endpoint": "/api/load", "status": "405",
+				"method": r.Method, "endpoint": "/api/func1", "status": "405",
 			})
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		log.Printf("[LOAD:%s] Starting Redis load test...", requestID)
+		log.Printf("[FUNC1:%s] Starting func1 ..", requestID)
 		metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
-			"method": r.Method, "endpoint": "/api/load", "status": "202",
+			"method": r.Method, "endpoint": "/api/func1", "status": "202",
 		})
 		
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusAccepted)
-		json.NewEncoder(w).Encode(Response{Success: true, Message: "Load test started"})
-		log.Printf("[LOAD:%s] Response sent, starting load test in background", requestID)
+		json.NewEncoder(w).Encode(Response{Success: true, Message: "Func1 started"})
+		log.Printf("[FUNC1:%s] Response sent, starting func1 in background", requestID)
 
 		go func() {
-			log.Printf("[LOAD:%s] Background load test initiated", requestID)
-			loadStart := time.Now()
+			log.Printf("[FUNC1:%s] Background func1 initiated", requestID)
+			funcStart := time.Now()
 			
-			metricsRegistry.IncrementCounter("redis_load_test_runs_total", map[string]string{"status": "started"})
+			metricsRegistry.IncrementCounter("func1_runs_total", map[string]string{"status": "started"})
 			
-			stats, err := load_redis.LoadRedis(redisClient)
-			loadDuration := time.Since(loadStart)
+			stats, err := func1.Func1Run(redisClient)
+			funcDuration := time.Since(funcStart)
 			
 			if err != nil {
-				log.Printf("[LOAD:%s] ERROR: Load test failed: %v", requestID, err)
-				metricsRegistry.IncrementCounter("redis_load_test_runs_total", map[string]string{"status": "failed"})
-				metricsRegistry.SetGauge("redis_load_test_failed_keys", float64(stats.FailedKeys), map[string]string{})
+				log.Printf("[FUNC1:%s] ERROR: Func1 failed: %v", requestID, err)
+				metricsRegistry.IncrementCounter("func1_runs_total", map[string]string{"status": "failed"})
+				metricsRegistry.SetGauge("func1_failed_keys", float64(stats.FailedKeys), map[string]string{})
 			} else {
-				log.Printf("[LOAD:%s] SUCCESS: Load test completed", requestID)
-				metricsRegistry.IncrementCounter("redis_load_test_runs_total", map[string]string{"status": "success"})
-				metricsRegistry.SetGauge("redis_load_test_successful_keys", float64(stats.SuccessfulKeys), map[string]string{})
-				metricsRegistry.SetGauge("redis_load_test_failed_keys", float64(stats.FailedKeys), map[string]string{})
-				metricsRegistry.SetGauge("redis_load_test_duration_seconds", stats.DurationSeconds, map[string]string{})
-				metricsRegistry.SetGauge("redis_load_test_throughput_keys_per_sec", stats.KeysPerSecond, map[string]string{})
-				metricsRegistry.SetGauge("redis_load_test_total_bytes", float64(stats.TotalBytes), map[string]string{})
+				log.Printf("[FUNC1:%s] SUCCESS: Func1 completed", requestID)
+				metricsRegistry.IncrementCounter("func1_runs_total", map[string]string{"status": "success"})
+				metricsRegistry.SetGauge("func1_successful_keys", float64(stats.SuccessfulKeys), map[string]string{})
+				metricsRegistry.SetGauge("func1_failed_keys", float64(stats.FailedKeys), map[string]string{})
+				metricsRegistry.SetGauge("func1_duration_seconds", stats.DurationSeconds, map[string]string{})
+				metricsRegistry.SetGauge("func1_throughput_keys_per_sec", stats.KeysPerSecond, map[string]string{})
+				metricsRegistry.SetGauge("func1_total_bytes", float64(stats.TotalBytes), map[string]string{})
 				
-				log.Printf("[LOAD:%s] Storing %d keys and %d values in application memory...", requestID, len(stats.Keys), len(stats.Values))
+				log.Printf("[FUNC1:%s] Storing %d keys and %d values in application memory...", requestID, len(stats.Keys), len(stats.Values))
 				loadedKeysMutex.Lock()
 				loadedKeys = stats.Keys
 				loadedKeysMutex.Unlock()
@@ -236,78 +236,78 @@ func main() {
 				loadedValues = stats.Values
 				loadedValuesMutex.Unlock()
 				
-				log.Printf("[LOAD:%s] Keys stored in application array (total: %d keys)", requestID, len(loadedKeys))
-				log.Printf("[LOAD:%s] Values stored in application array (total: %d values)", requestID, len(loadedValues))
-				log.Printf("[LOAD:%s] Keys array memory usage: %.2f MB", requestID, float64(len(loadedKeys)*4096)/1024/1024)
-				log.Printf("[LOAD:%s] Values array memory usage: %.2f MB", requestID, float64(len(loadedValues)*10000)/1024/1024)
-				log.Printf("[LOAD:%s] Total array memory usage: %.2f MB", requestID, float64(len(loadedKeys)*4096+len(loadedValues)*10000)/1024/1024)
+				log.Printf("[FUNC1:%s] Keys stored in application array (total: %d keys)", requestID, len(loadedKeys))
+				log.Printf("[FUNC1:%s] Values stored in application array (total: %d values)", requestID, len(loadedValues))
+				log.Printf("[FUNC1:%s] Keys array memory usage: %.2f MB", requestID, float64(len(loadedKeys)*4096)/1024/1024)
+				log.Printf("[FUNC1:%s] Values array memory usage: %.2f MB", requestID, float64(len(loadedValues)*10000)/1024/1024)
+				log.Printf("[FUNC1:%s] Total array memory usage: %.2f MB", requestID, float64(len(loadedKeys)*4096+len(loadedValues)*10000)/1024/1024)
 				
 				metricsRegistry.SetGauge("app_loaded_keys_count", float64(len(loadedKeys)), map[string]string{})
 				metricsRegistry.SetGauge("app_loaded_values_count", float64(len(loadedValues)), map[string]string{})
 			}
 			
-			log.Printf("[LOAD:%s] Load test completed in %v", requestID, loadDuration)
+			log.Printf("[FUNC1:%s] Func1 completed in %v", requestID, funcDuration)
 		}()
 	}))
-	log.Println("[HTTP] /api/load endpoint registered")
+	log.Println("[HTTP] /api/func1 endpoint registered")
 
-	log.Println("[HTTP] Registering /api/load-db endpoint...")
-	http.HandleFunc("/api/load-db", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	log.Println("[HTTP] Registering /api/func2 endpoint...")
+	http.HandleFunc("/api/func2", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		requestID := fmt.Sprintf("%d", time.Now().UnixNano())
-		log.Printf("[LOAD-DB:%s] Incoming %s request to /api/load-db from %s", requestID, r.Method, r.RemoteAddr)
+		log.Printf("[FUNC-2:%s] Incoming %s request to /api/func2 from %s", requestID, r.Method, r.RemoteAddr)
 		
 		if r.Method != http.MethodGet {
-			log.Printf("[LOAD-DB:%s] ERROR: Method not allowed: %s", requestID, r.Method)
+			log.Printf("[FUNC-2:%s] ERROR: Method not allowed: %s", requestID, r.Method)
 			metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
-				"method": r.Method, "endpoint": "/api/load-db", "status": "405",
+				"method": r.Method, "endpoint": "/api/func2", "status": "405",
 			})
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		log.Printf("[LOAD-DB:%s] Starting database load test...", requestID)
+		log.Printf("[FUNC-2:%s] Starting Func 2 ...", requestID)
 		metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
-			"method": r.Method, "endpoint": "/api/load-db", "status": "202",
+			"method": r.Method, "endpoint": "/api/func2", "status": "202",
 		})
 		
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusAccepted)
-		json.NewEncoder(w).Encode(Response{Success: true, Message: "Database load test started"})
-		log.Printf("[LOAD-DB:%s] Response sent, starting load test in background", requestID)
+		json.NewEncoder(w).Encode(Response{Success: true, Message: "Func 2 started"})
+		log.Printf("[FUNC-2:%s] Response sent, starting Func 2 in background", requestID)
 
 		go func() {
-			log.Printf("[LOAD-DB:%s] Background database load test initiated", requestID)
-			loadStart := time.Now()
+			log.Printf("[FUNC-2:%s] Background Func 2 initiated", requestID)
+			funcStart := time.Now()
 			
-			metricsRegistry.IncrementCounter("db_load_test_runs_total", map[string]string{"status": "started"})
+			metricsRegistry.IncrementCounter("func2_runs_total", map[string]string{"status": "started"})
 			
-			stats, err := load_db.LoadDatabase(pgHost, pgPort, pgUser, pgPass, pgDB)
-			loadDuration := time.Since(loadStart)
+			stats, err := func2.Func2Run(pgHost, pgPort, pgUser, pgPass, pgDB)
+			funcDuration := time.Since(funcStart)
 			
 			if err != nil {
-				log.Printf("[LOAD-DB:%s] ERROR: Database load test failed: %v", requestID, err)
-				metricsRegistry.IncrementCounter("db_load_test_runs_total", map[string]string{"status": "failed"})
+				log.Printf("[FUNC-2:%s] ERROR: Func 2 failed: %v", requestID, err)
+				metricsRegistry.IncrementCounter("func2_runs_total", map[string]string{"status": "failed"})
 			} else {
-				log.Printf("[LOAD-DB:%s] SUCCESS: Database load test completed", requestID)
-				metricsRegistry.IncrementCounter("db_load_test_runs_total", map[string]string{"status": "success"})
-				metricsRegistry.SetGauge("db_load_test_connections", float64(stats.SuccessfulConnections), map[string]string{})
-				metricsRegistry.SetGauge("db_load_test_duration_seconds", stats.DurationSeconds, map[string]string{})
-				metricsRegistry.SetGauge("db_load_test_avg_latency_seconds", stats.AverageLatencySeconds, map[string]string{})
-				metricsRegistry.SetGauge("db_active_connections_count", float64(load_db.GetActiveConnectionsCount()), map[string]string{})
+				log.Printf("[FUNC-2:%s] SUCCESS: Func 2 completed", requestID)
+				metricsRegistry.IncrementCounter("func2_runs_total", map[string]string{"status": "success"})
+				metricsRegistry.SetGauge("func2_connections", float64(stats.SuccessfulConnections), map[string]string{})
+				metricsRegistry.SetGauge("func2_duration_seconds", stats.DurationSeconds, map[string]string{})
+				metricsRegistry.SetGauge("func2_avg_latency_seconds", stats.AverageLatencySeconds, map[string]string{})
+				metricsRegistry.SetGauge("db_active_connections_count", float64(func2.GetActiveConnectionsCount()), map[string]string{})
 			}
 			
-			log.Printf("[LOAD-DB:%s] Database load test completed in %v", requestID, loadDuration)
+			log.Printf("[FUNC-2:%s] Func 2 completed in %v", requestID, funcDuration)
 		}()
 	}))
-	log.Println("[HTTP] /api/load-db endpoint registered")
+	log.Println("[HTTP] /api/func2 endpoint registered")
 
 	log.Println("========================================")
 	log.Println("API SERVER READY")
 	log.Println("Listening on :8080")
 	log.Println("Endpoints:")
 	log.Println("  - POST /api/set")
-	log.Println("  - GET  /api/load")
-	log.Println("  - GET  /api/load-db")
+	log.Println("  - GET  /api/func1")
+	log.Println("  - GET  /api/func2")
 	log.Println("  - GET  /metrics")
 	log.Println("========================================")
 	

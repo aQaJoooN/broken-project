@@ -35,83 +35,83 @@ function initializeApp() {
         }
     });
 
-    // Load Redis button handler
-    document.getElementById('loadBtn').addEventListener('click', async () => {
-        const loadBtn = document.getElementById('loadBtn');
-        const loadResultDiv = document.getElementById('loadResult');
+    // Func1 button handler
+    document.getElementById('func1Btn').addEventListener('click', async () => {
+        const func1Btn = document.getElementById('func1Btn');
+        const func1ResultDiv = document.getElementById('func1Result');
 
-        loadBtn.disabled = true;
-        loadBtn.textContent = 'Loading...';
-        loadResultDiv.className = 'result info';
-        loadResultDiv.textContent = '⏳ Starting Redis load test... This may take several minutes.';
+        func1Btn.disabled = true;
+        func1Btn.textContent = 'Loading...';
+        func1ResultDiv.className = 'result info';
+        func1ResultDiv.textContent = '⏳ Starting Func 1... This may take several minutes. Check server logs for progress.';
 
         try {
-            const response = await fetch(getApiUrl('load'), {
+            const response = await fetch(getApiUrl('func1'), {
                 method: 'GET'
             });
 
             const data = await response.json();
 
             if (data.success) {
-                loadResultDiv.className = 'result success';
-                loadResultDiv.textContent = `✓ ${data.message} - Check server logs for progress. This will take a few minutes.`;
+                func1ResultDiv.className = 'result success';
+                func1ResultDiv.textContent = `✓ ${data.message} - This will take a few minutes.`;
 
                 setTimeout(() => {
-                    loadBtn.disabled = false;
-                    loadBtn.textContent = 'Load on Redis';
+                    func1Btn.disabled = false;
+                    func1Btn.textContent = 'Func 1';
                 }, 5000);
             } else {
-                loadResultDiv.className = 'result error';
-                loadResultDiv.textContent = `✗ ${data.message}`;
-                loadBtn.disabled = false;
-                loadBtn.textContent = 'Load on Redis';
+                func1ResultDiv.className = 'result error';
+                func1ResultDiv.textContent = `✗ ${data.message}`;
+                func1Btn.disabled = false;
+                func1Btn.textContent = 'Func 1';
             }
 
         } catch (error) {
-            loadResultDiv.className = 'result error';
-            loadResultDiv.textContent = `✗ Error: ${error.message}`;
-            loadBtn.disabled = false;
-            loadBtn.textContent = 'Load on Redis';
+            func1ResultDiv.className = 'result error';
+            func1ResultDiv.textContent = `✗ Error: ${error.message}`;
+            func1Btn.disabled = false;
+            func1Btn.textContent = 'Func 1';
         }
     });
 
-    // Load Database button handler
-    document.getElementById('loadDbBtn').addEventListener('click', async () => {
-        const loadDbBtn = document.getElementById('loadDbBtn');
-        const loadDbResultDiv = document.getElementById('loadDbResult');
+    // Func 2 button handler
+    document.getElementById('func2Btn').addEventListener('click', async () => {
+        const func2Btn = document.getElementById('func2Btn');
+        const func2ResultDiv = document.getElementById('func2Result');
 
-        loadDbBtn.disabled = true;
-        loadDbBtn.textContent = 'Loading...';
-        loadDbResultDiv.className = 'result info';
-        loadDbResultDiv.textContent = '⏳ Starting database load test... Opening 200 connections.';
+        func2Btn.disabled = true;
+        func2Btn.textContent = 'Loading...';
+        func2ResultDiv.className = 'result info';
+        func2ResultDiv.textContent = '⏳ Starting Func 2... This may take several minutes. Check server logs for progress.';
 
         try {
-            const response = await fetch(getApiUrl('loadDb'), {
+            const response = await fetch(getApiUrl('func2'), {
                 method: 'GET'
             });
 
             const data = await response.json();
 
             if (data.success) {
-                loadDbResultDiv.className = 'result success';
-                loadDbResultDiv.textContent = `✓ ${data.message} - Check server logs for progress.`;
+                func2ResultDiv.className = 'result success';
+                func2ResultDiv.textContent = `✓ ${data.message} - This will take a few minutes.`;
 
                 setTimeout(() => {
-                    loadDbBtn.disabled = false;
-                    loadDbBtn.textContent = 'Load on DataBase';
+                    func2Btn.disabled = false;
+                    func2Btn.textContent = 'Func 2';
                 }, 5000);
             } else {
-                loadDbResultDiv.className = 'result error';
-                loadDbResultDiv.textContent = `✗ ${data.message}`;
-                loadDbBtn.disabled = false;
-                loadDbBtn.textContent = 'Load on DataBase';
+                func2ResultDiv.className = 'result error';
+                func2ResultDiv.textContent = `✗ ${data.message}`;
+                func2Btn.disabled = false;
+                func2Btn.textContent = 'Func 2';
             }
 
         } catch (error) {
-            loadDbResultDiv.className = 'result error';
-            loadDbResultDiv.textContent = `✗ Error: ${error.message}`;
-            loadDbBtn.disabled = false;
-            loadDbBtn.textContent = 'Load on DataBase';
+            func2ResultDiv.className = 'result error';
+            func2ResultDiv.textContent = `✗ Error: ${error.message}`;
+            func2Btn.disabled = false;
+            func2Btn.textContent = 'Func 2';
         }
     });
 
@@ -119,11 +119,11 @@ function initializeApp() {
     document.getElementById('link-set').href = getApiUrl('set');
     document.getElementById('link-set').textContent = getApiUrl('set');
 
-    document.getElementById('link-load').href = getApiUrl('load');
-    document.getElementById('link-load').textContent = getApiUrl('load');
+    document.getElementById('link-func1').href = getApiUrl('func1');
+    document.getElementById('link-func1').textContent = getApiUrl('func1');
 
-    document.getElementById('link-load-db').href = getApiUrl('loadDb');
-    document.getElementById('link-load-db').textContent = getApiUrl('loadDb');
+    document.getElementById('link-func2').href = getApiUrl('func2');
+    document.getElementById('link-func2').textContent = getApiUrl('func2');
 
     document.getElementById('link-metrics').href = getApiUrl('metrics');
     document.getElementById('link-metrics').textContent = getApiUrl('metrics');

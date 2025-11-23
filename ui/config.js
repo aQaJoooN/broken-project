@@ -3,8 +3,8 @@ const API_CONFIG = {
     baseUrl: 'http://localhost:8080',
     endpoints: {
         set: '/api/set',
-        load: '/api/load',
-        loadDb: '/api/load-db',
+        func1: '/api/func1',
+        func2: '/api/func2',
         metrics: '/metrics'
     }
 };

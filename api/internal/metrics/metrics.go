@@ -88,11 +88,11 @@ func (r *Registry) Export() string {
 		"redis_operations_total": {
 			"help": "Total number of Redis operations by operation type and status",
 		},
-		"redis_load_test_runs_total": {
-			"help": "Total number of Redis load test runs by status",
+		"func1_runs_total": {
+			"help": "Total number of Func 1 Runs by status",
 		},
-		"db_load_test_runs_total": {
-			"help": "Total number of database load test runs by status",
+		"func2_runs_total": {
+			"help": "Total number of Func 2 Runs by status",
 		},
 	}
 
@@ -127,26 +127,26 @@ func (r *Registry) Export() string {
 		"postgres_connection_status": {
 			"help": "PostgreSQL connection status (1=connected, 0=disconnected)",
 		},
-		"redis_load_test_duration_seconds": {
-			"help": "Duration of the last Redis load test in seconds",
+		"func1_duration_seconds": {
+			"help": "Duration of the last Func 1 Run in seconds",
 		},
-		"redis_load_test_throughput_keys_per_sec": {
-			"help": "Throughput of the last Redis load test in keys per second",
+		"func1_throughput_keys_per_sec": {
+			"help": "Throughput of the last Func 1 Run in keys per second",
 		},
-		"redis_load_test_successful_keys": {
-			"help": "Number of successfully loaded keys in the last Redis load test",
+		"func1_successful_keys": {
+			"help": "Number of successfully loaded keys in the last Func 1 Run",
 		},
-		"redis_load_test_failed_keys": {
-			"help": "Number of failed keys in the last Redis load test",
+		"func1_failed_keys": {
+			"help": "Number of failed keys in the last Func 1 Run",
 		},
-		"redis_load_test_total_bytes": {
-			"help": "Total bytes written in the last Redis load test",
+		"func1_total_bytes": {
+			"help": "Total bytes written in the last Func 1 Run",
 		},
 		"app_loaded_keys_count": {
-			"help": "Number of keys currently stored in application memory from load test",
+			"help": "Number of keys currently stored in application memory",
 		},
 		"app_loaded_values_count": {
-			"help": "Number of values currently stored in application memory from load test",
+			"help": "Number of values currently stored in application memory",
 		},
 		"http_request_duration_seconds": {
 			"help": "HTTP request duration in seconds by endpoint",
@@ -157,17 +157,17 @@ func (r *Registry) Export() string {
 		"postgres_operation_latency_seconds": {
 			"help": "PostgreSQL operation latency in seconds by operation type",
 		},
-		"db_load_test_successful_connections": {
-			"help": "Number of successful database connections in the last load test",
+		"func2_successful_connections": {
+			"help": "Number of successful database connections in the Run Func 2",
 		},
-		"db_load_test_failed_connections": {
-			"help": "Number of failed database connections in the last load test",
+		"func2_failed_connections": {
+			"help": "Number of failed database connections in the Run Func 2",
 		},
-		"db_load_test_duration_seconds": {
-			"help": "Duration of the last database load test in seconds",
+		"func2_duration_seconds": {
+			"help": "Duration of the last Func 2 Run in seconds",
 		},
-		"db_load_test_average_latency_seconds": {
-			"help": "Average connection latency in the last database load test",
+		"func2_average_latency_seconds": {
+			"help": "Average connection latency in the last Func 2 Run",
 		},
 		"db_active_connections_count": {
 			"help": "Number of active database connections being kept alive",
