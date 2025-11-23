@@ -2,14 +2,14 @@ version: '3.8'
 
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine3.21
     ports:
       - "6379:6379"
     networks:
       - app-network
 
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15-alpine3.22
     environment:
       POSTGRES_USER: appuser
       POSTGRES_PASSWORD: apppass
