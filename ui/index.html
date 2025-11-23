@@ -13,22 +13,36 @@
         <h1>Broken Application</h1>
         
         <div class="card">
-            <h2>Redis</h2>
-            <form id="setForm">
+            <h2>Create User</h2>
+            <form id="userForm">
                 <div class="form-group">
-                    <label for="key">Key:</label>
-                    <input type="text" id="key" name="key" required>
+                    <label for="firstName">First Name:</label>
+                    <input type="text" id="firstName" name="firstName" maxlength="32" required>
                 </div>
                 
                 <div class="form-group">
-                    <label for="value">Value:</label>
-                    <input type="text" id="value" name="value" required>
+                    <label for="lastName">Last Name:</label>
+                    <input type="text" id="lastName" name="lastName" maxlength="32" required>
                 </div>
                 
-                <button type="submit" class="btn">Set Value</button>
+                <div class="form-group">
+                    <label for="age">Age:</label>
+                    <input type="number" id="age" name="age" min="0" max="150" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="maritalStatus">Marital Status:</label>
+                    <select id="maritalStatus" name="maritalStatus" required>
+                        <option value="">Select...</option>
+                        <option value="true">Married</option>
+                        <option value="false">Single</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn">Create User</button>
             </form>
             
-            <div id="result" class="result"></div>
+            <div id="userResult" class="result"></div>
         </div>
 
         <div class="card">
@@ -45,7 +59,7 @@
 
         <div class="info">
             <p><strong>API Endpoints:</strong></p>
-            <p>• <a id="link-set" href="#" target="_blank"></a> (POST)</p>
+            <p>• <a id="link-user" href="#" target="_blank"></a> (POST)</p>
             <p>• <a id="link-func1" href="#" target="_blank"></a> (GET)</p>
             <p>• <a id="link-func2" href="#" target="_blank"></a> (GET)</p>
             <p><strong>Metrics:</strong> <a id="link-metrics" href="#" target="_blank"></a></p>

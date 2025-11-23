@@ -1,33 +1,40 @@
 // Wait for DOM to be ready
 function initializeApp() {
-    // Set form handler
-    document.getElementById('setForm').addEventListener('submit', async (e) => {
+    // User form handler
+    document.getElementById('userForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const key = document.getElementById('key').value;
-        const value = document.getElementById('value').value;
-        const resultDiv = document.getElementById('result');
+        const firstName = document.getElementById('firstName').value;
+        const lastName = document.getElementById('lastName').value;
+        const age = parseInt(document.getElementById('age').value);
+        const maritalStatus = document.getElementById('maritalStatus').value === 'true';
+        const resultDiv = document.getElementById('userResult');
 
         try {
-            const response = await fetch(getApiUrl('set'), {
+            const response = await fetch(getApiUrl('user'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ key, value })
+                body: JSON.stringify({ 
+                    first_name: firstName,
+                    last_name: lastName,
+                    age: age,
+                    marital_status: maritalStatus
+                })
             });
 
             const data = await response.json();
 
             if (data.success) {
                 resultDiv.className = 'result success';
-                resultDiv.textContent = `✓ ${data.message}`;
+                resultDiv.textContent = `✓ ${data.message} (User ID: ${data.user_id})`;
             } else {
                 resultDiv.className = 'result error';
                 resultDiv.textContent = `✗ ${data.message}`;
             }
 
-            document.getElementById('setForm').reset();
+            document.getElementById('userForm').reset();
 
         } catch (error) {
             resultDiv.className = 'result error';
@@ -116,9 +123,9 @@ function initializeApp() {
     });
 
     // Initialize links
-    document.getElementById('link-set').href = getApiUrl('set');
-    document.getElementById('link-set').textContent = getApiUrl('set');
-
+    document.getElementById('link-user').href = getApiUrl('user');
+    document.getElementById('link-user').textContent = getApiUrl('user');
+    
     document.getElementById('link-func1').href = getApiUrl('func1');
     document.getElementById('link-func1').textContent = getApiUrl('func1');
 

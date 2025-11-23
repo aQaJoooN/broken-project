@@ -226,10 +226,13 @@ func (p *PGClient) buildPasswordMessage() []byte {
 func (p *PGClient) CreateTable() error {
 	operationStart := time.Now()
 	
-	query := `CREATE TABLE IF NOT EXISTS app_data (
+	query := `CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
-		key VARCHAR(255) UNIQUE NOT NULL,
-		value TEXT,
+		user_id VARCHAR(36) UNIQUE NOT NULL,
+		first_name VARCHAR(32) NOT NULL,
+		last_name VARCHAR(32) NOT NULL,
+		age INTEGER NOT NULL,
+		marital_status BOOLEAN NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	)`
 
@@ -243,6 +246,29 @@ func (p *PGClient) CreateTable() error {
 	
 	if p.metricsRegistry != nil {
 		p.metricsRegistry.SetGauge("postgres_operation_latency_seconds", totalLatency.Seconds(), map[string]string{"operation": "create_table"})
+	}
+	
+	return err
+}
+
+func (p *PGClient) InsertUser(userID, firstName, lastName string, age int, maritalStatus bool) error {
+	operationStart := time.Now()
+	
+	query := fmt.Sprintf(`INSERT INTO users (user_id, first_name, last_name, age, marital_status) VALUES ('%s', '%s', '%s', %d, %t)`,
+		userID, firstName, lastName, age, maritalStatus)
+
+	log.Printf("[POSTGRES] Executing INSERT query...")
+	log.Printf("[POSTGRES] Query: %s", query)
+	log.Printf("[POSTGRES] User: id=%s, first_name=%s, last_name=%s, age=%d, marital_status=%t", 
+		userID, firstName, lastName, age, maritalStatus)
+	
+	err := p.executeQuery(query)
+	
+	totalLatency := time.Since(operationStart)
+	log.Printf("[POSTGRES] INSERT completed (total latency: %v)", totalLatency)
+	
+	if p.metricsRegistry != nil {
+		p.metricsRegistry.SetGauge("postgres_operation_latency_seconds", totalLatency.Seconds(), map[string]string{"operation": "insert_user"})
 	}
 	
 	return err

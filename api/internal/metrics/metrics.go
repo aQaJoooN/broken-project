@@ -94,6 +94,9 @@ func (r *Registry) Export() string {
 		"func2_runs_total": {
 			"help": "Total number of Func 2 Runs by status",
 		},
+		"user_created_total": {
+			"help": "Total number of users created",
+		},
 	}
 
 	counterCount := 0

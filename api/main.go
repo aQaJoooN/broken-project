@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"runtime"
@@ -21,6 +22,13 @@ import (
 type SetRequest struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+}
+
+type UserRequest struct {
+	FirstName     string `json:"first_name"`
+	LastName      string `json:"last_name"`
+	Age           int    `json:"age"`
+	MaritalStatus bool   `json:"marital_status"`
 }
 
 type Response struct {
@@ -100,6 +108,101 @@ func main() {
 
 	metricsRegistry.SetGauge("redis_connection_status", 1, map[string]string{})
 	metricsRegistry.SetGauge("postgres_connection_status", 1, map[string]string{})
+
+	log.Println("[HTTP] Registering /api/user endpoint...")
+	http.HandleFunc("/api/user", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		requestID := fmt.Sprintf("%d", time.Now().UnixNano())
+		requestStart := time.Now()
+		
+		log.Printf("[USER:%s] Incoming %s request to /api/user from %s", requestID, r.Method, r.RemoteAddr)
+		log.Printf("[USER:%s] Headers: %v", requestID, r.Header)
+		
+		if r.Method != http.MethodPost {
+			log.Printf("[USER:%s] ERROR: Method not allowed: %s", requestID, r.Method)
+			metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
+				"method": r.Method, "endpoint": "/api/user", "status": "405",
+			})
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req UserRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			log.Printf("[USER:%s] ERROR: Failed to decode JSON body: %v", requestID, err)
+			metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
+				"method": r.Method, "endpoint": "/api/user", "status": "400",
+			})
+			json.NewEncoder(w).Encode(Response{Success: false, Message: "Invalid request"})
+			return
+		}
+		
+		log.Printf("[USER:%s] Decoded payload: first_name='%s', last_name='%s', age=%d, marital_status=%t", 
+			requestID, req.FirstName, req.LastName, req.Age, req.MaritalStatus)
+		
+		// Generate UUID for user
+		userID := fmt.Sprintf("%d-%d", time.Now().UnixNano(), rand.Intn(10000))
+		redisKey := fmt.Sprintf("user:%s", userID)
+		
+		log.Printf("[USER:%s] Generated user_id: %s", requestID, userID)
+		log.Printf("[USER:%s] Redis key: %s", requestID, redisKey)
+		
+		// Create JSON value for Redis
+		userJSON := fmt.Sprintf(`{"first_name":"%s","last_name":"%s","age":%d,"marital_status":%t}`,
+			req.FirstName, req.LastName, req.Age, req.MaritalStatus)
+		
+		log.Printf("[USER:%s] Storing to Redis...", requestID)
+		setStart := time.Now()
+		if err := redisClient.Set(redisKey, userJSON); err != nil {
+			log.Printf("[USER:%s] ERROR: Redis SET failed: %v", requestID, err)
+			metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
+				"method": r.Method, "endpoint": "/api/user", "status": "500",
+			})
+			metricsRegistry.IncrementCounter("redis_operations_total", map[string]string{
+				"operation": "set", "status": "error",
+			})
+			json.NewEncoder(w).Encode(Response{Success: false, Message: err.Error()})
+			return
+		}
+		setDuration := time.Since(setStart)
+		log.Printf("[USER:%s] Redis SET completed in %v", requestID, setDuration)
+		
+		log.Printf("[USER:%s] Storing to PostgreSQL...", requestID)
+		insertStart := time.Now()
+		if err := pgClient.InsertUser(userID, req.FirstName, req.LastName, req.Age, req.MaritalStatus); err != nil {
+			log.Printf("[USER:%s] ERROR: PostgreSQL INSERT failed: %v", requestID, err)
+			metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
+				"method": r.Method, "endpoint": "/api/user", "status": "500",
+			})
+			json.NewEncoder(w).Encode(Response{Success: false, Message: "Failed to insert into database"})
+			return
+		}
+		insertDuration := time.Since(insertStart)
+		log.Printf("[USER:%s] PostgreSQL INSERT completed in %v", requestID, insertDuration)
+
+		metricsRegistry.IncrementCounter("api_requests_total", map[string]string{
+			"method": r.Method, "endpoint": "/api/user", "status": "200",
+		})
+		metricsRegistry.IncrementCounter("redis_operations_total", map[string]string{
+			"operation": "set", "status": "success",
+		})
+		metricsRegistry.IncrementCounter("user_created_total", map[string]string{})
+		metricsRegistry.SetGauge("http_request_duration_seconds", time.Since(requestStart).Seconds(), map[string]string{
+			"endpoint": "/api/user",
+		})
+		metricsRegistry.SetGauge("app_goroutines", float64(runtime.NumGoroutine()), map[string]string{})
+		
+		log.Printf("[USER:%s] SUCCESS: User '%s' created successfully (user_id: %s)", requestID, req.FirstName+" "+req.LastName, userID)
+		log.Printf("[USER:%s] Sending response to client", requestID)
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"message": "User created successfully",
+			"user_id": userID,
+		})
+		log.Printf("[USER:%s] Request completed successfully", requestID)
+	}))
+	log.Println("[HTTP] /api/user endpoint registered")
 
 	log.Println("[HTTP] Registering /api/set endpoint...")
 	http.HandleFunc("/api/set", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
@@ -305,6 +408,7 @@ func main() {
 	log.Println("API SERVER READY")
 	log.Println("Listening on :8080")
 	log.Println("Endpoints:")
+	log.Println("  - POST /api/user")
 	log.Println("  - POST /api/set")
 	log.Println("  - GET  /api/func1")
 	log.Println("  - GET  /api/func2")
