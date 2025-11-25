@@ -9,9 +9,9 @@ import (
 
 func MonitorMemory(registry *metrics.Registry) {
 	log.Println("[USAGE] Memory monitor goroutine started")
-	log.Println("[USAGE] Monitoring interval: 5 seconds")
+	log.Println("[USAGE] Monitoring interval: 20 seconds")
 	
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(20 * time.Second)
 	defer ticker.Stop()
 
 	iteration := 0
