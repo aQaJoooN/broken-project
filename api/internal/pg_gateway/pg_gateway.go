@@ -386,17 +386,65 @@ func (p *PGClient) GetAllUsers() ([]map[string]interface{}, error) {
 			// Parse DataRow messages (type 'D')
 			if msgType[0] == 'D' {
 				rowCount++
-				log.Printf("[POSTGRES] Parsing DataRow #%d", rowCount)
+				log.Printf("[POSTGRES] Parsing DataRow #%d, payload length: %d", rowCount, len(payload))
 				
-				user := map[string]interface{}{
-					"user_id":        fmt.Sprintf("user_%d", rowCount),
-					"first_name":     "User",
-					"last_name":      fmt.Sprintf("LastName%d", rowCount),
-					"age":            25,
-					"marital_status": false,
+				// DataRow format: int16 (num columns) followed by column data
+				// Each column: int32 (length) + data bytes
+				if len(payload) < 2 {
+					log.Printf("[POSTGRES] WARNING: Payload too short for DataRow")
+					continue
 				}
-				users = append(users, user)
-				log.Printf("[POSTGRES] Parsed user: %v", user)
+				
+				numCols := int(payload[0])<<8 | int(payload[1])
+				log.Printf("[POSTGRES] Number of columns: %d", numCols)
+				
+				pos := 2
+				fields := make([]string, 0, numCols)
+				
+				for col := 0; col < numCols && pos < len(payload); col++ {
+					if pos+4 > len(payload) {
+						log.Printf("[POSTGRES] WARNING: Not enough data for column %d length", col)
+						break
+					}
+					
+					fieldLen := int(payload[pos])<<24 | int(payload[pos+1])<<16 | int(payload[pos+2])<<8 | int(payload[pos+3])
+					pos += 4
+					
+					if fieldLen == -1 {
+						// NULL value
+						fields = append(fields, "")
+						log.Printf("[POSTGRES] Column %d: NULL", col)
+					} else if fieldLen > 0 {
+						if pos+fieldLen > len(payload) {
+							log.Printf("[POSTGRES] WARNING: Not enough data for column %d value (need %d, have %d)", col, fieldLen, len(payload)-pos)
+							break
+						}
+						
+						fieldValue := string(payload[pos : pos+fieldLen])
+						fields = append(fields, fieldValue)
+						log.Printf("[POSTGRES] Column %d: '%s' (length: %d)", col, fieldValue, fieldLen)
+						pos += fieldLen
+					} else {
+						fields = append(fields, "")
+						log.Printf("[POSTGRES] Column %d: empty", col)
+					}
+				}
+				
+				// Map fields to user structure
+				// Expected order: user_id, first_name, last_name, age, marital_status
+				if len(fields) >= 5 {
+					user := map[string]interface{}{
+						"user_id":        fields[0],
+						"first_name":     fields[1],
+						"last_name":      fields[2],
+						"age":            fields[3],
+						"marital_status": fields[4],
+					}
+					users = append(users, user)
+					log.Printf("[POSTGRES] Parsed user: %v", user)
+				} else {
+					log.Printf("[POSTGRES] WARNING: Not enough fields parsed (%d), expected 5", len(fields))
+				}
 			}
 		}
 		
