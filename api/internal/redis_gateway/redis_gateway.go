@@ -151,6 +151,108 @@ func (r *RedisClient) Get(key string) (string, error) {
 	return "", fmt.Errorf("unexpected response: %s", response)
 }
 
+func (r *RedisClient) GetAllUsers() ([]map[string]interface{}, error) {
+	operationStart := time.Now()
+	
+	log.Printf("[REDIS] Getting all user keys with pattern 'user:*'")
+	
+	// First, get all keys matching pattern "user:*"
+	cmd := "*2\r\n$4\r\nKEYS\r\n$6\r\nuser:*\r\n"
+	
+	log.Printf("[REDIS] Sending KEYS command...")
+	bytesWritten, err := r.conn.Write([]byte(cmd))
+	if err != nil {
+		log.Printf("[REDIS] ERROR: Failed to write KEYS command: %v", err)
+		return nil, err
+	}
+	log.Printf("[REDIS] Wrote %d bytes", bytesWritten)
+	
+	reader := bufio.NewReader(r.conn)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		log.Printf("[REDIS] ERROR: Failed to read KEYS response: %v", err)
+		return nil, err
+	}
+	log.Printf("[REDIS] KEYS response: %q", response)
+	
+	// Parse array response
+	if !strings.HasPrefix(response, "*") {
+		log.Printf("[REDIS] ERROR: Unexpected KEYS response format: %s", response)
+		return nil, fmt.Errorf("unexpected response: %s", response)
+	}
+	
+	countStr := strings.TrimSpace(response[1:])
+	count, err := strconv.Atoi(countStr)
+	if err != nil {
+		log.Printf("[REDIS] ERROR: Failed to parse key count: %v", err)
+		return nil, err
+	}
+	
+	log.Printf("[REDIS] Found %d user keys", count)
+	
+	if count == 0 {
+		totalLatency := time.Since(operationStart)
+		if r.metricsRegistry != nil {
+			r.metricsRegistry.SetGauge("redis_operation_latency_seconds", totalLatency.Seconds(), map[string]string{"operation": "get_all_users"})
+		}
+		return []map[string]interface{}{}, nil
+	}
+	
+	// Read all keys
+	keys := make([]string, 0, count)
+	for i := 0; i < count; i++ {
+		// Read bulk string length
+		lengthLine, err := reader.ReadString('\n')
+		if err != nil {
+			log.Printf("[REDIS] ERROR: Failed to read key length: %v", err)
+			return nil, err
+		}
+		
+		if strings.HasPrefix(lengthLine, "$") {
+			lengthStr := strings.TrimSpace(lengthLine[1:])
+			length, _ := strconv.Atoi(lengthStr)
+			
+			// Read key value
+			keyBytes := make([]byte, length)
+			reader.Read(keyBytes)
+			reader.ReadString('\n') // Read trailing \r\n
+			
+			keys = append(keys, string(keyBytes))
+		}
+	}
+	
+	log.Printf("[REDIS] Retrieved %d keys: %v", len(keys), keys)
+	
+	// Now get all values for these keys
+	users := make([]map[string]interface{}, 0, len(keys))
+	for _, key := range keys {
+		value, err := r.Get(key)
+		if err != nil {
+			log.Printf("[REDIS] WARNING: Failed to get value for key %s: %v", key, err)
+			continue
+		}
+		
+		// Parse user ID from key (format: "user:12345-6789")
+		userID := strings.TrimPrefix(key, "user:")
+		
+		// Create user map (simplified - in production would parse JSON)
+		user := map[string]interface{}{
+			"user_id": userID,
+			"data":    value,
+		}
+		users = append(users, user)
+	}
+	
+	totalLatency := time.Since(operationStart)
+	log.Printf("[REDIS] Retrieved %d users (total latency: %v)", len(users), totalLatency)
+	
+	if r.metricsRegistry != nil {
+		r.metricsRegistry.SetGauge("redis_operation_latency_seconds", totalLatency.Seconds(), map[string]string{"operation": "get_all_users"})
+	}
+	
+	return users, nil
+}
+
 func (r *RedisClient) Close() error {
 	log.Printf("[REDIS] Closing connection to %s...", r.addr)
 	if r.conn != nil {

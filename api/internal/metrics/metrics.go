@@ -97,6 +97,9 @@ func (r *Registry) Export() string {
 		"user_created_total": {
 			"help": "Total number of users created",
 		},
+		"user_operations_total": {
+			"help": "Total number of user operations by operation type and status",
+		},
 	}
 
 	counterCount := 0
@@ -174,6 +177,12 @@ func (r *Registry) Export() string {
 		},
 		"db_active_connections_count": {
 			"help": "Number of active database connections being kept alive",
+		},
+		"user_operation_duration_seconds": {
+			"help": "Duration of user operations in seconds by operation type",
+		},
+		"users_retrieved_count": {
+			"help": "Number of users retrieved in the last get operation",
 		},
 	}
 

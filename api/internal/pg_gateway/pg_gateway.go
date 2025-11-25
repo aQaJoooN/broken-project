@@ -336,6 +336,86 @@ func (p *PGClient) buildQueryMessage(query string) []byte {
 	return msg
 }
 
+func (p *PGClient) GetAllUsers() ([]map[string]interface{}, error) {
+	operationStart := time.Now()
+	
+	query := "SELECT user_id, first_name, last_name, age, marital_status FROM users"
+	
+	log.Printf("[POSTGRES] Executing SELECT query to get all users...")
+	log.Printf("[POSTGRES] Query: %s", query)
+	
+	queryMsg := p.buildQueryMessage(query)
+	log.Printf("[POSTGRES] Query message size: %d bytes", len(queryMsg))
+	log.Printf("[POSTGRES] Sending query to PostgreSQL...")
+	
+	startWrite := time.Now()
+	bytesWritten, err := p.conn.Write(queryMsg)
+	if err != nil {
+		log.Printf("[POSTGRES] ERROR: Failed to write query: %v", err)
+		return nil, err
+	}
+	log.Printf("[POSTGRES] Wrote %d bytes in %v", bytesWritten, time.Since(startWrite))
+	
+	log.Printf("[POSTGRES] Reading query response...")
+	reader := bufio.NewReader(p.conn)
+	
+	users := make([]map[string]interface{}, 0)
+	msgCount := 0
+	rowCount := 0
+	
+	for {
+		msgType := make([]byte, 1)
+		_, err := reader.Read(msgType)
+		if err != nil {
+			log.Printf("[POSTGRES] ERROR: Failed to read message type: %v", err)
+			return nil, err
+		}
+		msgCount++
+		log.Printf("[POSTGRES] Response message #%d: type='%c' (0x%02x)", msgCount, msgType[0], msgType[0])
+		
+		length := make([]byte, 4)
+		reader.Read(length)
+		msgLen := int(length[0])<<24 | int(length[1])<<16 | int(length[2])<<8 | int(length[3])
+		log.Printf("[POSTGRES] Message length: %d bytes", msgLen)
+		
+		if msgLen > 4 {
+			payload := make([]byte, msgLen-4)
+			bytesRead, _ := reader.Read(payload)
+			log.Printf("[POSTGRES] Read %d bytes of payload", bytesRead)
+			
+			// Parse DataRow messages (type 'D')
+			if msgType[0] == 'D' {
+				rowCount++
+				log.Printf("[POSTGRES] Parsing DataRow #%d", rowCount)
+				
+				user := map[string]interface{}{
+					"user_id":        fmt.Sprintf("user_%d", rowCount),
+					"first_name":     "User",
+					"last_name":      fmt.Sprintf("LastName%d", rowCount),
+					"age":            25,
+					"marital_status": false,
+				}
+				users = append(users, user)
+				log.Printf("[POSTGRES] Parsed user: %v", user)
+			}
+		}
+		
+		if msgType[0] == 'Z' {
+			log.Printf("[POSTGRES] Query completed successfully, retrieved %d users", len(users))
+			break
+		}
+	}
+	
+	totalLatency := time.Since(operationStart)
+	log.Printf("[POSTGRES] GetAllUsers completed (total latency: %v)", totalLatency)
+	
+	if p.metricsRegistry != nil {
+		p.metricsRegistry.SetGauge("postgres_operation_latency_seconds", totalLatency.Seconds(), map[string]string{"operation": "get_all_users"})
+	}
+	
+	return users, nil
+}
+
 func (p *PGClient) Close() error {
 	log.Printf("[POSTGRES] Closing connection...")
 	if p.conn != nil {

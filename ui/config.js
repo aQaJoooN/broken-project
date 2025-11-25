@@ -3,6 +3,7 @@ const API_CONFIG = {
     baseUrl: 'http://localhost:8080',
     endpoints: {
         user: '/api/user',
+        users: '/api/users',
         set: '/api/set',
         func1: '/api/func1',
         func2: '/api/func2',

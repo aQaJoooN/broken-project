@@ -180,6 +180,64 @@ input[type="text"]:focus {
     transform: none;
 }
 
+.btn-get-users {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.btn-get-users:hover {
+    box-shadow: 0 5px 15px rgba(250, 112, 154, 0.4);
+}
+
+.btn-get-users:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.users-list {
+    margin-top: 20px;
+}
+
+.users-table {
+    overflow-x: auto;
+}
+
+.users-table table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.users-table th,
+.users-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.users-table th {
+    background-color: #f5f5f5;
+    font-weight: 600;
+    color: #333;
+}
+
+.users-table tr:hover {
+    background-color: #f9f9f9;
+}
+
+.users-table td {
+    color: #555;
+    font-size: 14px;
+    word-break: break-all;
+}
+
+.no-users {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+    font-style: italic;
+}
+
 select {
     width: 100%;
     padding: 12px;

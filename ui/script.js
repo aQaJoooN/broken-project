@@ -122,9 +122,63 @@ function initializeApp() {
         }
     });
 
+    // Get Users button handler
+    document.getElementById('getUsersBtn').addEventListener('click', async () => {
+        const getUsersBtn = document.getElementById('getUsersBtn');
+        const getUsersResultDiv = document.getElementById('getUsersResult');
+        const usersListDiv = document.getElementById('usersList');
+
+        getUsersBtn.disabled = true;
+        getUsersBtn.textContent = 'Loading...';
+        getUsersResultDiv.className = 'result info';
+        getUsersResultDiv.textContent = '⏳ Fetching users...';
+        usersListDiv.innerHTML = '';
+
+        try {
+            const response = await fetch(getApiUrl('users'), {
+                method: 'GET'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                getUsersResultDiv.className = 'result success';
+                getUsersResultDiv.textContent = `✓ ${data.message}`;
+
+                if (data.users && data.users.length > 0) {
+                    let usersHTML = '<div class="users-table"><table><thead><tr><th>User ID</th><th>Data</th></tr></thead><tbody>';
+                    data.users.forEach(user => {
+                        usersHTML += `<tr><td>${user.user_id || 'N/A'}</td><td>${user.data || JSON.stringify(user)}</td></tr>`;
+                    });
+                    usersHTML += '</tbody></table></div>';
+                    usersListDiv.innerHTML = usersHTML;
+                } else {
+                    usersListDiv.innerHTML = '<p class="no-users">No users found.</p>';
+                }
+
+                getUsersBtn.disabled = false;
+                getUsersBtn.textContent = 'Get Users';
+            } else {
+                getUsersResultDiv.className = 'result error';
+                getUsersResultDiv.textContent = `✗ ${data.message}`;
+                getUsersBtn.disabled = false;
+                getUsersBtn.textContent = 'Get Users';
+            }
+
+        } catch (error) {
+            getUsersResultDiv.className = 'result error';
+            getUsersResultDiv.textContent = `✗ Error: ${error.message}`;
+            getUsersBtn.disabled = false;
+            getUsersBtn.textContent = 'Get Users';
+        }
+    });
+
     // Initialize links
     document.getElementById('link-user').href = getApiUrl('user');
     document.getElementById('link-user').textContent = getApiUrl('user');
+    
+    document.getElementById('link-users').href = getApiUrl('users');
+    document.getElementById('link-users').textContent = getApiUrl('users');
     
     document.getElementById('link-func1').href = getApiUrl('func1');
     document.getElementById('link-func1').textContent = getApiUrl('func1');
